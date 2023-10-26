@@ -1,18 +1,23 @@
 import numpy as np
-from Consts import hbar, Planck, c, MHzmT, SpinOp4, SpinOp2
+from Consts import hbar, Planck, c, MHzmT, SpinOp4, SpinOp2, SpinOp3
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 print("Starting....     ----------------------------------------------------------")
+
+# Add an orientation mixer to average over it all? 
+# B field with sinesoidal patterns for different oriantations, return the collection of diagonalised matrices' energy differences, 
+# Add Spin Orbit Coupling first from the two G centres????
+
 class H0:
     def __init__(self, 
-                 #D = np.diag([0, 0, 2000])*(10**6),
-                 D = np.array([[-1000, 0, 0],       #In Mhz
-                               [0,-1000, 0],
-                               [0, 0, 2000]]),
-                 g = np.diag([2.00, 2.00, 2.25]), 
+                 #D = np.diag([0, 0, 0]),
+                 D = np.array([[0, 0, 0],       #In Mhz
+                               [0,0, 0],
+                               [0, 0, 0]]),
+                 g = np.diag([0, 0, 0]), 
                  coil = np.array([0,0,320]),        # In mT
-                 SpinOp = SpinOp4,
-                 MicrowaveField = np.array([100,100,0])): # in MHz of the Frequency of the Microwaves, 
+                 SpinOp = SpinOp3,
+                 MicrowaveField = np.array([0.001,0.001,0.001])): # in MHz of the Frequency of the Microwaves, 
         self.D = D
         #print ("D = ", self.D)
         self.g = g
@@ -26,27 +31,18 @@ class H0:
         self.MicrowaveField = MicrowaveField
         #print ("MicrowaveField = ", self.MicrowaveField)
         self.ZFS = np.einsum('iab,ij,jbc -> ac', self.SOT, self.D, self.SpinOp) # D matrix is expressed in MHz already. 
-        #self.ZFS = np.einsum('i...,ij,j...', self.SOT, self.D, self.SpinOp) # in MhZ
-        print ("ZFS Frequency = ", np.around(self.ZFS, decimals=2))
+        #print ("ZFS Frequency = ", np.around(self.ZFS, decimals=2))
         self.Zeeman = np.einsum('iab,ij,j -> ab', self.SOT, self.g, self.coil) * MHzmT  # Convert from mT to MHz 
-        #self.Zeeman =  np.einsum('i...,ij,j...', self.SOT, self.g, self.coil)
-        print ("Zeeman Frequency = ", np.around(self.Zeeman, decimals=2))
+        #print ("Zeeman Frequency = ", np.around(self.Zeeman, decimals=2))
         self.Microwave = np.einsum('iab,ij,j -> ab', self.SOT, self.g, self.MicrowaveField) * MHzmT # Convert from mT to MHz
-        #self.Microwave = np.einsum('i...,ij,j...', self.SOT, self.g, self.MicrowaveField)
         #https://encyclopedia.pub/entry/9965 Equation sources. 
-        print ("Microwave Frequency = ", np.around(self.Microwave, decimals=2)  )
+        #print ("Microwave Frequency = ", np.around(self.Microwave, decimals=2)  )
         self.H = self.ZFS + self.Zeeman
-        #print ("H = ", self.H)
         self.EigenValues, self.EigenVectors = np.linalg.eig(self.H)
         self.Diagonaliser = np.linalg.inv(self.EigenVectors)
-        #print("Inverse",Inverse)
         self.H_Diagonalized = self.Diagonaliser @ self.H @ self.EigenVectors
-        #print("H_Diagonalized",self.H_Diagonalized)
-        #print(self.H_Diagonalized[1][1])
         self.M_Diagonalized = self.Diagonaliser @ self.Microwave @ self.EigenVectors
-        #print("M_Diagonalized",M_Diagonalized)
         self.H_Combined = self.H_Diagonalized + self.M_Diagonalized
-        #print("H_Combined",self.H_Combined)
 
 
     def plotMatrix(self, Matrix):
@@ -63,7 +59,12 @@ class H0:
         ax_real.title.set_text('Real'), ax_imag.title.set_text('Imaginary'), ax_absolute.title.set_text('Absolute')
         #ax.set_zscale('log')
         plt.show()
-
+    def MicorwaveFrequency(self):
+        for i in range(len(self.H)):
+            for j in range(len(self.H[i])):
+                if i != j:
+                    print("Transition between states ", i, " and ", j, " is ", (self.H[i][i] - self.H[j][j])/10**6, "MHz")
+        
     def updateMicrowave(self, x, y):
         self.MicrowaveField = np.array([x,y,0])
         self.Microwave = np.einsum('iab,ij,j -> ab', self.SOT, self.g, self.MicrowaveField)
@@ -71,8 +72,20 @@ class H0:
         self.H_Combined = self.H_Diagonalized + self.M_Diagonalized
         return self.H_Combined, self.M_Diagonalized
 
-"""
 
+a = H0(D=np.diag([6,8,13])*10**6, 
+       g=np.diag([2.00, 2.00, 2.25]),
+       coil=np.array([0, 0, 320]), 
+       SpinOp=SpinOp4, 
+       MicrowaveField=np.array([0.0000,0.0000,0.0000]))
+
+a.MicorwaveFrequency()
+
+
+
+#a.plotMatrix(a.H_Combined)
+
+"""
 a = H0( D=np.diag([-500, -500, 1000]), 
         g=np.diag([2.00, 2.00, 2.25]), 
         coil=np.array([0,0,320]), 
